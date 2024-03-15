@@ -8,7 +8,11 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.ImageDecoder;
+import android.graphics.Paint;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -17,15 +21,26 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.TextView;
 
 import com.example.myapplication.R;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.label.ImageLabel;
+import com.google.mlkit.vision.label.ImageLabeler;
+import com.google.mlkit.vision.label.ImageLabeling;
+import com.google.mlkit.vision.label.defaults.ImageLabelerOptions;
 
 import java.io.IOException;
+import java.util.List;
 
 public class ImageActivity extends AppCompatActivity {
     private int REQUEST_CODE_IMAGE = 1000;
-    private ImageView img;
-    private ListView lv;
+    private ImageView input_image_view;
+    private TextView output_textview;
+
+    private ImageLabeler imagelabeler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,8 +56,12 @@ public class ImageActivity extends AppCompatActivity {
     }
 
     private void on_create() {
-        img = findViewById(R.id.hinh_sinh_vien);
-        lv = findViewById(R.id.list_sinh_vien);
+        input_image_view = findViewById(R.id.hinh_sinh_vien);
+        output_textview = findViewById(R.id.output_textview);
+        imagelabeler = ImageLabeling.getClient(new ImageLabelerOptions.Builder()
+                .setConfidenceThreshold(0.7f)
+                .build()
+        );
 
     }
 
@@ -66,7 +85,8 @@ public class ImageActivity extends AppCompatActivity {
             if(requestCode == REQUEST_CODE_IMAGE){
                 Uri uri = data.getData();
                 Bitmap bitmap = load_from_uri(uri);
-                img.setImageBitmap(bitmap);
+                input_image_view.setImageBitmap(bitmap);
+                runClassification(bitmap);
             }
         }
     }
@@ -88,5 +108,45 @@ public class ImageActivity extends AppCompatActivity {
         }
 
         return bitmap;
+    }
+    protected ImageView get_input_image_view(){return input_image_view;}
+    protected TextView get_output_textview(){return output_textview;}
+    protected void runClassification(Bitmap bitmap){
+
+    }
+    protected void draw_detection_result(List<BoxWithLabel> boxes, Bitmap bitmap){
+        Bitmap output_bitmap = bitmap.copy(Bitmap.Config.ARGB_8888,true);
+        Canvas canvas = new Canvas(output_bitmap);
+        Paint pen_rect = new Paint();
+        pen_rect.setColor(Color.RED);
+        pen_rect.setStyle(Paint.Style.STROKE);
+        pen_rect.setStrokeWidth(8f);
+
+        Paint pen_label = new Paint();
+        pen_label.setColor(Color.YELLOW);
+        pen_label.setStyle(Paint.Style.FILL_AND_STROKE);
+        pen_label.setTextSize(96f);
+
+        for (BoxWithLabel box_with_label : boxes){
+            canvas.drawRect(box_with_label.rect, pen_rect);
+
+            //Rect
+            Rect label_size = new Rect(0,0,0,0);
+            pen_label.getTextBounds(box_with_label.label,0,box_with_label.label.length(),label_size);
+            float font_size = pen_label.getTextSize() * box_with_label.rect.width() / label_size.width();
+            if(font_size < pen_label.getTextSize()){
+                pen_label.setTextSize(font_size);
+            }
+
+            float margin = (box_with_label.rect.width() - label_size.width()) / 2.0F;
+            if (margin < 0F) margin = 0F;
+            canvas.drawText(
+                    box_with_label.label, box_with_label.rect.left + margin,
+                    box_with_label.rect.top + label_size.height(), pen_label
+            );
+
+        }
+        get_input_image_view().setImageBitmap(output_bitmap);
+
     }
 }

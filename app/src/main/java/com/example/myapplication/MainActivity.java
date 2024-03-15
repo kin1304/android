@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.view.View;
 
 import com.example.myapplication.Helper.ImageActivity;
+import com.example.myapplication.image.FaceDetectionActivity;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -17,7 +18,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void pick_image(View view) {
-        Intent intent = new Intent(this, ImageActivity.class);
+        Intent intent = new Intent(this, FaceDetectionActivity.class);
         startActivity(intent);
     }
 }

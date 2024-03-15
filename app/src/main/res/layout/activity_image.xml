@@ -25,12 +25,11 @@
 
             android:src="@drawable/human" />
 
-        <ListView
-            android:id="@+id/list_sinh_vien"
+        <TextView
+            android:id="@+id/output_textview"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:cacheColorHint="#FFFFFF"
-            android:isScrollContainer="true" />
+            android:layout_height="wrap_content" />
+
     </LinearLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout

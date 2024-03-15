@@ -17,6 +17,7 @@
         <activity
             android:name=".Helper.ImageActivity"
             android:exported="false" />
+        <activity android:name=".image.FaceDetectionActivity"/>
         <activity
             android:name=".MainActivity"
             android:exported="true">
