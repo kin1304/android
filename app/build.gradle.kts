@@ -15,6 +15,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    aaptOptions {
+        noCompress ("tflite")
+    }
 
     buildTypes {
         release {
@@ -41,6 +44,11 @@ dependencies {
     // image classification
     implementation("com.google.mlkit:image-labeling:17.0.8")
     implementation("com.google.mlkit:image-labeling-custom:17.0.2")
+    // tensorflow
+    implementation ("org.tensorflow:tensorflow-lite:2.4.0")
+    implementation ("org.tensorflow:tensorflow-lite-gpu:2.4.0")
+    implementation ("org.tensorflow:tensorflow-lite-support:0.2.0")
+
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
