@@ -14,6 +14,7 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.myapplication.Helper.BoxWithLabel;
@@ -21,6 +22,7 @@ import com.example.myapplication.Helper.DatabaseHandle;
 import com.example.myapplication.Helper.ImageActivity;
 import com.example.myapplication.data.DBHandle;
 import com.example.myapplication.data.HocSinh;
+import com.example.myapplication.data.TG;
 import com.example.myapplication.image.FaceDetectionActivity;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -53,10 +55,11 @@ public class MainActivity extends AppCompatActivity {
     }
     // Input image size for our facenet model
     private static final int FACENET_INPUT_IMAGE_SIZE = 112;
-    List<HocSinh> recognisedFaceList = new ArrayList();
+    private float[] temp ;
+
     private Interpreter faceNetModelInterpreter;
     private ImageProcessor faceNetImageProcessor;
-
+    private HocSinh hocsinh = new HocSinh();
     private FaceRecognitionCallback callback;
     public FaceDetector face_detector;
     ArrayList<HocSinh> array_list;
@@ -64,7 +67,9 @@ public class MainActivity extends AppCompatActivity {
     public String DATABASE_NAME = "doAn";
     public String output_name = "danh_sach";
     public String DB_SUFFIX_PATH = "/databases/";
-    public static SQLiteDatabase database = null;
+
+    public TextView txt ;
+    public String t="";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -72,6 +77,12 @@ public class MainActivity extends AppCompatActivity {
         add_control();
         process_copy();
         copy_database();
+
+           for (HocSinh h : array_list){
+               t += h.MaHS + "\n";
+           }
+           txt.setText(t);
+
     }
 
     private void copy_database() {
@@ -80,22 +91,24 @@ public class MainActivity extends AppCompatActivity {
             String ma = cursor.getString(0);
             byte[] hinh = cursor.getBlob(1);
             Bitmap bm = BitmapFactory.decodeByteArray(hinh, 0, hinh.length);
-            float[] vt = run_classification(bm);
-            array_list.add(new HocSinh(ma, hinh, vt));
+            run_classification(bm);
+
+            array_list.add(new HocSinh(ma, hinh, temp));
         }
+        TG.hocsinhs = array_list;
     }
 
-    private float[] run_classification(Bitmap bm) {
+    private void run_classification(Bitmap bm) {
         Bitmap output_bitmap = bm.copy(Bitmap.Config.ARGB_8888,true);
         InputImage input_image = InputImage.fromBitmap(output_bitmap,0);
-        final float[][] temp = new float[1][192];
+
         face_detector.process(input_image).addOnSuccessListener(new OnSuccessListener<List<Face>>() {
             @Override
             public void onSuccess(List<Face> faces) {
                 if(faces.isEmpty()){
 
                 } else{
-                    for( Face face : faces){
+                    Face face = faces.get(0);
                         int rotationDegrees = input_image.getRotationDegrees();
 
                         Bitmap faceBitmap = cropToBBox(output_bitmap, face.getBoundingBox(), rotationDegrees);
@@ -109,20 +122,23 @@ public class MainActivity extends AppCompatActivity {
                         ByteBuffer faceNetByteBuffer = faceNetImageProcessor.process(tensorImage).getBuffer();
                         float[][] faceOutputArray = new float[1][192];
                         faceNetModelInterpreter.run(faceNetByteBuffer, faceOutputArray);
-                        temp[0] = faceOutputArray[0];
+                        set_temp(faceOutputArray[0]);
 
-                    }
+
 
                 }
             }
         }).addOnFailureListener(new OnFailureListener() {
             @Override
             public void onFailure(@NonNull Exception e) {
-                temp[0] = null;
                 e.printStackTrace();
             }
         });
-        return temp[0];
+
+
+    }
+    private void set_temp(float[] vt){
+        temp = vt;
     }
 
     private Bitmap cropToBBox(Bitmap image, Rect boundingBox, int rotation) {
@@ -147,7 +163,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void add_control() {
-
+        temp = new float[192];
+        txt = findViewById(R.id.txtview);
         array_list = new ArrayList<>();
         database_handle = new DBHandle(this,"doAn",null,1);
         FaceDetectorOptions high_accuracy_opts =

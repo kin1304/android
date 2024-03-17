@@ -73,6 +73,7 @@ public class ImageActivity extends AppCompatActivity {
     }
 
     public void pick_image(View view) {
+        get_output_textview().setText("");
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
         startActivityForResult(intent, REQUEST_CODE_IMAGE);
@@ -111,6 +112,7 @@ public class ImageActivity extends AppCompatActivity {
     }
     protected ImageView get_input_image_view(){return input_image_view;}
     protected TextView get_output_textview(){return output_textview;}
+
     protected void runClassification(Bitmap bitmap){
 
     }

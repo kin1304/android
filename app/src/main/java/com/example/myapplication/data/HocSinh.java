@@ -12,4 +12,5 @@ public class HocSinh implements Serializable {
         HinhAnh = hinhAnh;
         this.face_vector = face_vector;
     }
+    public HocSinh(){}
 }
