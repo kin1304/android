@@ -1,25 +1,21 @@
 package com.example.myapplication;
 
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.os.Bundle;
-import android.text.Editable;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.myapplication.Helper.BoxWithLabel;
-import com.example.myapplication.Helper.DatabaseHandle;
-import com.example.myapplication.Helper.ImageActivity;
 import com.example.myapplication.data.DBHandle;
 import com.example.myapplication.data.HocSinh;
 import com.example.myapplication.data.TG;
@@ -77,61 +73,58 @@ public class MainActivity extends AppCompatActivity {
         add_control();
         process_copy();
         copy_database();
+        
 
-           for (HocSinh h : array_list){
-               t += h.MaHS + "\n";
-           }
-           txt.setText(t);
 
     }
 
     private void copy_database() {
         Cursor cursor = database_handle.get_data("select MaHS, HinhAnh from HocSinh");
         while(cursor.moveToNext()){
+            txt.setText("");
             String ma = cursor.getString(0);
             byte[] hinh = cursor.getBlob(1);
             Bitmap bm = BitmapFactory.decodeByteArray(hinh, 0, hinh.length);
-            run_classification(bm);
+            run_classification(bm, ma, hinh);
+            if (TG.hocsinhs.size()!=0){
+                array_list = TG.hocsinhs;
+            }
 
-            array_list.add(new HocSinh(ma, hinh, temp));
         }
-        TG.hocsinhs = array_list;
-    }
 
-    private void run_classification(Bitmap bm) {
+    }
+    public void stop() {
+        face_detector.close();
+    }
+    private void run_classification(Bitmap bm, String ma, byte[] hinh) {
         Bitmap output_bitmap = bm.copy(Bitmap.Config.ARGB_8888,true);
         InputImage input_image = InputImage.fromBitmap(output_bitmap,0);
 
         face_detector.process(input_image).addOnSuccessListener(new OnSuccessListener<List<Face>>() {
             @Override
             public void onSuccess(List<Face> faces) {
-                if(faces.isEmpty()){
+                Face face = faces.get(0);
+                int rotationDegrees = input_image.getRotationDegrees();
 
-                } else{
-                    Face face = faces.get(0);
-                        int rotationDegrees = input_image.getRotationDegrees();
+                Bitmap faceBitmap = cropToBBox(output_bitmap, face.getBoundingBox(), rotationDegrees);
 
-                        Bitmap faceBitmap = cropToBBox(output_bitmap, face.getBoundingBox(), rotationDegrees);
-
-                        if (faceBitmap == null) {
-                            Log.d("GraphicOverlay", "Face bitmap null");
-                            return;
-                        }
-
-                        TensorImage tensorImage = TensorImage.fromBitmap(faceBitmap);
-                        ByteBuffer faceNetByteBuffer = faceNetImageProcessor.process(tensorImage).getBuffer();
-                        float[][] faceOutputArray = new float[1][192];
-                        faceNetModelInterpreter.run(faceNetByteBuffer, faceOutputArray);
-                        set_temp(faceOutputArray[0]);
-
-
-
+                if (faceBitmap == null) {
+                    Log.d("GraphicOverlay", "Face bitmap null");
+                    return;
                 }
+
+                TensorImage tensorImage = TensorImage.fromBitmap(faceBitmap);
+                ByteBuffer faceNetByteBuffer = faceNetImageProcessor.process(tensorImage).getBuffer();
+                float[][] faceOutputArray = new float[1][192];
+                faceNetModelInterpreter.run(faceNetByteBuffer, faceOutputArray);
+                set_temp(faceOutputArray[0]);
+                TG.hocsinhs.add(new HocSinh(ma, hinh, faceOutputArray[0]));
+
             }
         }).addOnFailureListener(new OnFailureListener() {
             @Override
             public void onFailure(@NonNull Exception e) {
-                e.printStackTrace();
+
             }
         });
 
@@ -167,12 +160,14 @@ public class MainActivity extends AppCompatActivity {
         txt = findViewById(R.id.txtview);
         array_list = new ArrayList<>();
         database_handle = new DBHandle(this,"doAn",null,1);
-        FaceDetectorOptions high_accuracy_opts =
-                new FaceDetectorOptions.Builder()
-                        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-                        .enableTracking()
-                        .build();
-        face_detector = FaceDetection.getClient(high_accuracy_opts);
+        FaceDetectorOptions faceDetectorOptions = new FaceDetectorOptions.Builder()
+                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+                .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE)
+                // to ensure we don't count and analyse same person again
+                .enableTracking()
+                .build();
+        face_detector = FaceDetection.getClient(faceDetectorOptions);
+
         try {
             faceNetModelInterpreter = new Interpreter(FileUtil.loadMappedFile(this, "mobile_face_net.tflite"), new Interpreter.Options());
         } catch (IOException e) {
