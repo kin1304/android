@@ -53,6 +53,8 @@ public class ImageActivity extends AppCompatActivity {
                 requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 0);
             }
         }
+
+
     }
 
     private void on_create() {
@@ -70,6 +72,7 @@ public class ImageActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         Log.d(ImageActivity.class.getSimpleName(), "grant result for"+ permissions[0]);
+
     }
 
     public void pick_image(View view) {
@@ -77,6 +80,7 @@ public class ImageActivity extends AppCompatActivity {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
         startActivityForResult(intent, REQUEST_CODE_IMAGE);
+
     }
 
     @Override
@@ -88,6 +92,7 @@ public class ImageActivity extends AppCompatActivity {
                 Bitmap bitmap = load_from_uri(uri);
                 input_image_view.setImageBitmap(bitmap);
                 runClassification(bitmap);
+
             }
         }
     }
@@ -114,6 +119,9 @@ public class ImageActivity extends AppCompatActivity {
     protected TextView get_output_textview(){return output_textview;}
 
     protected void runClassification(Bitmap bitmap){
+
+    }
+    protected void ReadFile(String file_name){
 
     }
     protected void draw_detection_result(List<BoxWithLabel> boxes, Bitmap bitmap){

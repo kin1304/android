@@ -35,37 +35,37 @@ import org.tensorflow.lite.support.image.ImageProcessor;
 import org.tensorflow.lite.support.image.TensorImage;
 import org.tensorflow.lite.support.image.ops.ResizeOp;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-    public interface FaceRecognitionCallback {
-        void onFaceRecognised(Face face, float probability, String name);
-        void onFaceDetected(Face face, Bitmap faceBitmap, float[] vector);
-    }
+
     // Input image size for our facenet model
     private static final int FACENET_INPUT_IMAGE_SIZE = 112;
     private float[] temp ;
 
     private Interpreter faceNetModelInterpreter;
     private ImageProcessor faceNetImageProcessor;
-    private HocSinh hocsinh = new HocSinh();
-    private FaceRecognitionCallback callback;
     public FaceDetector face_detector;
     ArrayList<HocSinh> array_list;
     public static DBHandle database_handle;
     public String DATABASE_NAME = "doAn";
-    public String output_name = "danh_sach";
+
     public String DB_SUFFIX_PATH = "/databases/";
 
     public TextView txt ;
     public String t="";
+    public int i =-1;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -73,30 +73,44 @@ public class MainActivity extends AppCompatActivity {
         add_control();
         process_copy();
         copy_database();
-        
+        copy_ma();
 
+    }
 
+    private void copy_ma() {
+        for(int j = 0; j<=i ; j++) {
+            String file_name = "ma"+String.valueOf(j)+".txt";
+            String[] s;
+            s = ReadFile(file_name);
+            float[] f = new float[192];
+            try {
+                for (int i = 0; i < 192; i++) {
+                    f[i] = Float.parseFloat(s[i]);
+                }
+                TG.hocsinhs.get(j).face_vector = f;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void copy_database() {
         Cursor cursor = database_handle.get_data("select MaHS, HinhAnh from HocSinh");
         while(cursor.moveToNext()){
-            txt.setText("");
+            i++;
             String ma = cursor.getString(0);
             byte[] hinh = cursor.getBlob(1);
             Bitmap bm = BitmapFactory.decodeByteArray(hinh, 0, hinh.length);
-            run_classification(bm, ma, hinh);
-            if (TG.hocsinhs.size()!=0){
-                array_list = TG.hocsinhs;
-            }
-
+            run_classification(bm,i);
+            TG.hocsinhs.add(new HocSinh(ma, hinh, temp));
         }
+        cursor.close();
 
     }
     public void stop() {
         face_detector.close();
     }
-    private void run_classification(Bitmap bm, String ma, byte[] hinh) {
+    private void run_classification(Bitmap bm, int i) {
         Bitmap output_bitmap = bm.copy(Bitmap.Config.ARGB_8888,true);
         InputImage input_image = InputImage.fromBitmap(output_bitmap,0);
 
@@ -118,13 +132,19 @@ public class MainActivity extends AppCompatActivity {
                 float[][] faceOutputArray = new float[1][192];
                 faceNetModelInterpreter.run(faceNetByteBuffer, faceOutputArray);
                 set_temp(faceOutputArray[0]);
-                TG.hocsinhs.add(new HocSinh(ma, hinh, faceOutputArray[0]));
+                t="";
+                for (int i=0;i<192;i++){
+                    t += String.valueOf(faceOutputArray[0][i])+ " ";
+                }
+                String file_name = "ma"+String.valueOf(i)+".txt";
+                WriteToFile(t,file_name);
+
 
             }
         }).addOnFailureListener(new OnFailureListener() {
             @Override
             public void onFailure(@NonNull Exception e) {
-
+                e.printStackTrace();
             }
         });
 
@@ -156,6 +176,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void add_control() {
+        try {
+            faceNetModelInterpreter = new Interpreter(FileUtil.loadMappedFile(this, "mobile_face_net.tflite"), new Interpreter.Options());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         temp = new float[192];
         txt = findViewById(R.id.txtview);
         array_list = new ArrayList<>();
@@ -168,11 +193,7 @@ public class MainActivity extends AppCompatActivity {
                 .build();
         face_detector = FaceDetection.getClient(faceDetectorOptions);
 
-        try {
-            faceNetModelInterpreter = new Interpreter(FileUtil.loadMappedFile(this, "mobile_face_net.tflite"), new Interpreter.Options());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
         faceNetImageProcessor = new ImageProcessor.Builder()
                 .add(new ResizeOp(FACENET_INPUT_IMAGE_SIZE, FACENET_INPUT_IMAGE_SIZE, ResizeOp.ResizeMethod.BILINEAR))
                 .add(new NormalizeOp(0f, 255f))
@@ -193,11 +214,11 @@ public class MainActivity extends AppCompatActivity {
             File file = new File(get_path(DATABASE_NAME));
             if (!file.exists()){
                 copy_database_from_assest();
-                Toast.makeText(this, "success",Toast.LENGTH_LONG);
+                Toast.makeText(this, "success",Toast.LENGTH_LONG).show();
             }
         }
         catch(Exception e){
-            Toast.makeText(this, "fail",Toast.LENGTH_LONG);
+            Toast.makeText(this, "fail",Toast.LENGTH_LONG).show();
 
         }
     }
@@ -219,9 +240,45 @@ public class MainActivity extends AppCompatActivity {
             input_file.close();
 
         }
-        catch (Exception e){
+        catch (IOException e){
             e.printStackTrace();
         }
     }
+
+    public void WriteToFile(String t, String file_name){
+
+        File file = new File(get_path(file_name));
+        try {
+            if(file.exists()) {file.delete();}
+            file.createNewFile();
+            Toast.makeText(this, String.valueOf(temp[0]),Toast.LENGTH_LONG).show();
+            OutputStream output_file = new FileOutputStream(get_path(file_name));
+            OutputStreamWriter ghi = new OutputStreamWriter(output_file);
+            ghi.write(t);
+            ghi.flush();
+            ghi.close();
+
+        }
+        catch (IOException e){
+            Toast.makeText(this,"that bai",Toast.LENGTH_LONG);
+            e.printStackTrace();
+        }
+    }
+    public String[] ReadFile(String file_name){
+        try{
+            File file = new File(get_path(file_name));
+
+            InputStream input_file = new FileInputStream(file);
+            InputStreamReader doc = new InputStreamReader(input_file);
+            BufferedReader read = new BufferedReader(doc);
+            String[] s = read.readLine().split(" ");
+            doc.close();
+            return s;
+        }catch(IOException e){
+            Toast.makeText(this,"that bai",Toast.LENGTH_LONG);
+            return null;
+        }
+    }
+
 
 }
